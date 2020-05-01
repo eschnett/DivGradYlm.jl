@@ -146,7 +146,7 @@ end
     T = Float64
     atol = sqrt(eps(T))
     # Choose function
-    modes = Dict{NTuple{2,Int}, Complex{T}}()
+    modes = GradModes{T}()
     for l in 1:lmax, m in -l:l
         modes[(l,m)] = rand(Complex{T})
     end
@@ -175,7 +175,7 @@ end
     T = Float64
     atol = sqrt(eps(T))
     # Choose function
-    modes = Dict{NTuple{2,Int}, Complex{T}}()
+    modes = CurlModes{T}()
     for l in 1:lmax, m in -l:l
         modes[(l,m)] = rand(Complex{T})
     end
