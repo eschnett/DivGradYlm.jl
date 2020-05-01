@@ -1,0 +1,9 @@
+name = "DivGradYlm"
+uuid = "a515c0ff-a5f4-4335-aae6-cec338bbd25c"
+authors = ["Erik Schnetter <schnetter@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
