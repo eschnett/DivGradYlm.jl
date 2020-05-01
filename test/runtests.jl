@@ -188,13 +188,68 @@ end
 end
 
 @testset "gradient_scalar" begin
+    T = Float64
+    # Choose function
+    smodes = ScalarModes{T}()
+    for l in 0:lmax, m in -l:l
+        smodes[(l,m)] = rand(Complex{T})
+    end
+    gmodes = grad_scalar(smodes)
+    gmodes::GradModes{T}
+end
+
+@testset "div_scalar" begin
+    T = Float64
+    # Choose function
+    smodes = ScalarModes{T}()
+    for l in 0:lmax, m in -l:l
+        smodes[(l,m)] = rand(Complex{T})
+    end
+    dmodes = div_scalar(smodes)
+    dmodes::ScalarModes{T}
+end
+
+@testset "div_grad" begin
+    T = Float64
+    # Choose function
+    gmodes = GradModes{T}()
+    for l in 1:lmax, m in -l:l
+        gmodes[(l,m)] = rand(Complex{T})
+    end
+    smodes = div_grad(gmodes)
+    smodes::ScalarModes{T}
 end
 
 @testset "curl_scalar" begin
+    T = Float64
+    # Choose function
+    smodes = ScalarModes{T}()
+    for l in 0:lmax, m in -l:l
+        smodes[(l,m)] = rand(Complex{T})
+    end
+    cmodes = curl_scalar(smodes)
+    cmodes::CurlModes{T}
 end
 
-@testset "div_gradient" begin
+@testset "curl_grad" begin
+    T = Float64
+    # Choose function
+    gmodes = GradModes{T}()
+    for l in 1:lmax, m in -l:l
+        gmodes[(l,m)] = rand(Complex{T})
+    end
+    cmodes = curl_grad(gmodes)
+    cmodes::CurlModes{T}
 end
 
-@testset "div_curl" begin
+@testset "curl_curl" begin
+    T = Float64
+    # Choose function
+    cmodes = CurlModes{T}()
+    for l in 1:lmax, m in -l:l
+        cmodes[(l,m)] = rand(Complex{T})
+    end
+    smodes, gmodes = curl_curl(cmodes)
+    smodes::ScalarModes{T}
+    gmodes::GradModes{T}
 end

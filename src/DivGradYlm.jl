@@ -185,39 +185,66 @@ end
 
 
 export grad_scalar
-function grad_scalar(smodes::Dict{NTuple{2,Int}, T}) where {T}
-    gmodes = Dict{NTuple{2,Int}, Complex{T}}()
+function grad_scalar(smodes::ScalarModes{T})::GradModes{T} where {T}
+    gmodes = GradModes{T}()
     for l in 1:lmax, m in -l:l
         gmodes[(l,m)] = smodes[(l,m)]
     end
     gmodes
 end
 
-export curl_scalar
-function curl_scalar(smodes::Dict{NTuple{2,Int}, T}) where {T}
-    cmodes = Dict{NTuple{2,Int}, Complex{T}}()
-    for l in 1:lmax, m in -l:l
-        cmodes[(l,m)] = -l*(l+1)*smodes[(l,m)]
-    end
-    cmodes
-end
-
 export div_scalar
-function div_scalar(smodes::Dict{NTuple{2,Int}, T}) where {T}
-    dmodes = Dict{NTuple{2,Int}, Complex{T}}()
-    for l in 1:lmax, m in -l:l
-        dmodes[(l,m)] = 2*smodes[(l,m)]
+function div_scalar(smodes::ScalarModes{T})::ScalarModes{T} where {T}
+    dmodes = ScalarModes{T}()
+    for l in 0:lmax, m in -l:l
+        dmodes[(l,m)] = smodes[(l,m)] / 2
     end
     dmodes
 end
 
-export curl_grad
-function curl_grad(gmodes::Dict{NTuple{2,Int}, T}) where {T}
-    smodes = Dict{NTuple{2,Int}, Complex{T}}()
+export div_grad
+function div_grad(gmodes::GradModes{T})::ScalarModes{T} where {T}
+    smodes = ScalarModes{T}()
+    smodes[(0,0)] = 0
     for l in 1:lmax, m in -l:l
-        smodes[(l,m)] = gmodes[(l,m)]
+        smodes[(l,m)] = - gmodes[(l,m)] / (l*(l+1))
     end
     smodes
+end
+
+# div_curl is by definition always zero
+
+export curl_scalar
+function curl_scalar(smodes::ScalarModes{T})::CurlModes{T} where {T}
+    cmodes = CurlModes{T}()
+    for l in 1:lmax, m in -l:l
+        cmodes[(l,m)] = -smodes[(l,m)]
+    end
+    cmodes
+end
+
+export curl_grad
+function curl_grad(gmodes::GradModes{T})::CurlModes{T} where {T}
+    cmodes = CurlModes{T}()
+    for l in 1:lmax, m in -l:l
+        cmodes[(l,m)] = gmodes[(l,m)]
+    end
+    cmodes
+end
+
+export curl_curl
+function curl_curl(cmodes::CurlModes{T}
+                   )::Tuple{ScalarModes{T}, GradModes{T}} where {T}
+    smodes = ScalarModes{T}()
+    smodes[(0,0)] = 0
+    for l in 1:lmax, m in -l:l
+        smodes[(l,m)] = - cmodes[(l,m)] / (l*(l+1))
+    end
+    gmodes = GradModes{T}()
+    for l in 1:lmax, m in -l:l
+        gmodes[(l,m)] = - cmodes[(l,m)]
+    end
+    smodes, gmodes
 end
 
 end
