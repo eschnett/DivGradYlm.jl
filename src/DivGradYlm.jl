@@ -43,22 +43,22 @@ end
 
 
 Y00(θ,ϕ) = sqrt(1/4π)
-gradY00(θ,ϕ) = (0, 0)
+dY00(θ,ϕ) = (0, 0)
 
 Y10(θ,ϕ) = sqrt(3/4π) * cos(θ)
 Y11(θ,ϕ) = -sqrt(3/8π) * sin(θ) * cis(ϕ)
-gradY10(θ,ϕ) = (-sqrt(3/4π) * sin(θ), 0)
-gradY11(θ,ϕ) = (-sqrt(3/8π) * cos(θ) * cis(ϕ),
-                -sqrt(3/8π) * im * cis(ϕ))
+dY10(θ,ϕ) = (-sqrt(3/4π) * sin(θ), 0)
+dY11(θ,ϕ) = (-sqrt(3/8π) * cos(θ) * cis(ϕ),
+             -sqrt(3/8π) * im * cis(ϕ))
 
 Y20(θ,ϕ) = sqrt(5/16π) * (-1 + 3*cos(θ)^2)
 Y21(θ,ϕ) = -sqrt(15/8π) * cos(θ) * sin(θ) * cis(ϕ)
 Y22(θ,ϕ) = sqrt(15/32π) * sin(θ)^2 * cis(2ϕ)
-gradY20(θ,ϕ) = (-sqrt(45/4π) * cos(θ) * sin(θ), 0)
-gradY21(θ,ϕ) = (-sqrt(15/8π) * cos(2θ) * cis(ϕ),
-                -sqrt(15/8π) * im * cos(θ) * cis(ϕ))
-gradY22(θ,ϕ) = (sqrt(15/8π) * cos(θ) * sin(θ) * cis(2ϕ),
-                sqrt(15/8π) * im * sin(θ) * cis(2ϕ))
+dY20(θ,ϕ) = (-sqrt(45/4π) * cos(θ) * sin(θ), 0)
+dY21(θ,ϕ) = (-sqrt(15/8π) * cos(2θ) * cis(ϕ),
+             -sqrt(15/8π) * im * cos(θ) * cis(ϕ))
+dY22(θ,ϕ) = (sqrt(15/8π) * cos(θ) * sin(θ) * cis(2ϕ),
+             sqrt(15/8π) * im * sin(θ) * cis(2ϕ))
 
 
 
@@ -82,12 +82,12 @@ function gradYlm(l,m,θ::T,ϕ::T)::SVector{2,Complex{T}} where {T}
     ϕ′ = bitsign(m<0) * ϕ
     s = m<0 ? bitsign(m) : 1
     m = abs(m)
-    (l,m) == (0,0) && return s.*gradY00(θ,ϕ′)
-    (l,m) == (1,0) && return s.*gradY10(θ,ϕ′)
-    (l,m) == (1,1) && return s.*gradY11(θ,ϕ′)
-    (l,m) == (2,0) && return s.*gradY20(θ,ϕ′)
-    (l,m) == (2,1) && return s.*gradY21(θ,ϕ′)
-    (l,m) == (2,2) && return s.*gradY22(θ,ϕ′)
+    (l,m) == (0,0) && return s.*dY00(θ,ϕ′)
+    (l,m) == (1,0) && return s.*dY10(θ,ϕ′)
+    (l,m) == (1,1) && return s.*dY11(θ,ϕ′)
+    (l,m) == (2,0) && return s.*dY20(θ,ϕ′)
+    (l,m) == (2,1) && return s.*dY21(θ,ϕ′)
+    (l,m) == (2,2) && return s.*dY22(θ,ϕ′)
     @error "oops"
 end
 
@@ -95,7 +95,7 @@ export curlYlm
 # (-1/sinθ ∂ϕ, ∂θ)
 function curlYlm(l,m,θ::T,ϕ::T)::SVector{2,Complex{T}} where {T}
     dr = gradYlm(l,m,θ,ϕ)
-    (-dr[2], dr[1])
+    dr[2], -dr[1]
 end
 
 
