@@ -117,9 +117,30 @@ struct CurlModes{T} <: AbstractModes{T}
     m::Dict{NTuple{2,Int}, Complex{T}}
     CurlModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
 end
+
 Base.getindex(m::AbstractModes, x...) = getindex(m.m, x...)
 Base.setindex!(m::AbstractModes, x...) = setindex!(m.m, x...)
 Base.get(m::AbstractModes, x...) = get(m.m, x...)
+
+lmin(::Type{<:ScalarModes}) = 0
+lmin(::Type{<:GradModes}) = 1
+lmin(::Type{<:CurlModes}) = 1
+
+function Base.zero(::Type{M}) where {M<:AbstractModes{T}} where {T}
+    modes = M()
+    for l in lmin(M):lmax, m in -l:l
+        modes[(l,m)] = 0
+    end
+    modes
+end
+
+function Base.rand(::Type{M}) where {M<:AbstractModes{T}} where {T}
+    modes = M()
+    for l in lmin(M):lmax, m in -l:l
+        modes[(l,m)] = rand(T)
+    end
+    modes
+end
 
 
 
@@ -197,7 +218,7 @@ export div_scalar
 function div_scalar(smodes::ScalarModes{T})::ScalarModes{T} where {T}
     dmodes = ScalarModes{T}()
     for l in 0:lmax, m in -l:l
-        dmodes[(l,m)] = smodes[(l,m)] / 2
+        dmodes[(l,m)] = 2 * smodes[(l,m)]
     end
     dmodes
 end
@@ -207,7 +228,7 @@ function div_grad(gmodes::GradModes{T})::ScalarModes{T} where {T}
     smodes = ScalarModes{T}()
     smodes[(0,0)] = 0
     for l in 1:lmax, m in -l:l
-        smodes[(l,m)] = - gmodes[(l,m)] / (l*(l+1))
+        smodes[(l,m)] = -(l*(l+1)) * gmodes[(l,m)]
     end
     smodes
 end
@@ -218,7 +239,7 @@ export curl_scalar
 function curl_scalar(smodes::ScalarModes{T})::CurlModes{T} where {T}
     cmodes = CurlModes{T}()
     for l in 1:lmax, m in -l:l
-        cmodes[(l,m)] = -smodes[(l,m)]
+        cmodes[(l,m)] = - smodes[(l,m)]
     end
     cmodes
 end
@@ -238,13 +259,18 @@ function curl_curl(cmodes::CurlModes{T}
     smodes = ScalarModes{T}()
     smodes[(0,0)] = 0
     for l in 1:lmax, m in -l:l
-        smodes[(l,m)] = - cmodes[(l,m)] / (l*(l+1))
+        smodes[(l,m)] = -l*(l+1) * cmodes[(l,m)]
     end
     gmodes = GradModes{T}()
     for l in 1:lmax, m in -l:l
         gmodes[(l,m)] = - cmodes[(l,m)]
     end
     smodes, gmodes
+end
+
+export laplace_scalar
+function laplace_scalar(smodes::ScalarModes{T})::ScalarModes{T} where {T}
+    div_grad(grad_scalar(smodes))
 end
 
 end
