@@ -189,6 +189,50 @@ end
         end
     end
 
+    @testset "expand_trace" begin
+        for l in 0:lmax, m in -l:l
+            f(θ,ϕ) = traceYlm(l,m,θ,ϕ)
+            modes = expand_trace(T, f)
+            for l′=0:lmax, m′=-l′:l′
+                δ = (l,m)==(l′,m′)
+                @test abs(modes[(l′,m′)] - δ) <= 10*atol
+            end
+        end
+    end
+
+    @testset "eval_trace" begin
+        # Choose function
+        modes = rand(TraceModes{T})
+        f(θ,ϕ) = eval_trace(modes, θ,ϕ)
+        # Expand into modes
+        modes′ = expand_trace(T, f)
+        for l in 0:lmax, m in -l:l
+            @test abs(modes[(l,m)] - modes′[(l,m)]) <= 10*atol
+        end
+    end
+
+    @testset "expand_gradgrad" begin
+        for l in 2:lmax, m in -l:l
+            f(θ,ϕ) = gradgradYlm(l,m,θ,ϕ)
+            modes = expand_gradgrad(T, f)
+            for l′=2:lmax, m′=-l′:l′
+                δ = (l,m)==(l′,m′)
+                @test abs(modes[(l′,m′)] - δ) <= 10*atol
+            end
+        end
+    end
+
+    @testset "eval_gradgrad" begin
+        # Choose function
+        modes = rand(GradGradModes{T})
+        f(θ,ϕ) = eval_gradgrad(modes, θ,ϕ)
+        # Expand into modes
+        modes′ = expand_gradgrad(T, f)
+        for l in 2:lmax, m in -l:l
+            @test abs(modes[(l,m)] - modes′[(l,m)]) <= 10*atol
+        end
+    end
+
 end
 
 

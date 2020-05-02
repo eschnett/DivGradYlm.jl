@@ -188,6 +188,16 @@ struct CurlModes{T} <: AbstractModes{T}
     m::Dict{NTuple{2,Int}, Complex{T}}
     CurlModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
 end
+export TraceModes
+struct TraceModes{T} <: AbstractModes{T}
+    m::Dict{NTuple{2,Int}, Complex{T}}
+    TraceModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
+end
+export GradGradModes
+struct GradGradModes{T} <: AbstractModes{T}
+    m::Dict{NTuple{2,Int}, Complex{T}}
+    GradGradModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
+end
 
 Base.getindex(m::AbstractModes, x...) = getindex(m.m, x...)
 Base.setindex!(m::AbstractModes, x...) = setindex!(m.m, x...)
@@ -196,6 +206,8 @@ Base.get(m::AbstractModes, x...) = get(m.m, x...)
 lmin(::Type{<:ScalarModes}) = 0
 lmin(::Type{<:GradModes}) = 1
 lmin(::Type{<:CurlModes}) = 1
+lmin(::Type{<:TraceModes}) = 0
+lmin(::Type{<:GradGradModes}) = 2
 
 function Base.zero(::Type{M}) where {M<:AbstractModes{T}} where {T}
     modes = M()
@@ -270,6 +282,49 @@ function eval_curl(modes::CurlModes{T}, θ,ϕ)::SVector{2,Complex{T}} where {T}
     r = SVector{2,Complex{T}}(0, 0)
     for l in 1:lmax, m in -l:l
         r += modes[(l,m)] .* curlYlm(l,m,θ,ϕ)
+    end
+    r
+end
+
+export expand_trace
+function expand_trace(::Type{T}, f::F)::TraceModes{T} where {T, F}
+    atol = sqrt(eps(T))
+    modes = TraceModes{T}()
+    for l in 0:lmax, m in -l:l
+        modes[(l,m)] =
+            sphere_tdot(T, (θ,ϕ) -> traceYlm(l,m,θ,ϕ), f) / 2
+    end
+    modes
+end
+
+export eval_trace
+function eval_trace(modes::TraceModes{T}, θ,ϕ
+                    )::SMatrix{2,2,Complex{T}} where {T}
+    r = SMatrix{2,2,Complex{T}}(0, 0, 0, 0)
+    for l in 0:lmax, m in -l:l
+        r += modes[(l,m)] .* traceYlm(l,m,θ,ϕ)
+    end
+    r
+end
+
+export expand_gradgrad
+function expand_gradgrad(::Type{T}, f::F)::GradGradModes{T} where {T, F}
+    atol = sqrt(eps(T))
+    modes = GradGradModes{T}()
+    for l in 2:lmax, m in -l:l
+        modes[(l,m)] =
+            sphere_tdot(T, (θ,ϕ) -> gradgradYlm(l,m,θ,ϕ), f) /
+            (l*(l+1) * (l*(l+1)÷2 - 1))
+    end
+    modes
+end
+
+export eval_gradgrad
+function eval_gradgrad(modes::GradGradModes{T}, θ,ϕ
+                    )::SMatrix{2,2,Complex{T}} where {T}
+    r = SMatrix{2,2,Complex{T}}(0, 0, 0, 0)
+    for l in 2:lmax, m in -l:l
+        r += modes[(l,m)] .* gradgradYlm(l,m,θ,ϕ)
     end
     r
 end
