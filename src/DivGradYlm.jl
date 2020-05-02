@@ -60,12 +60,12 @@ end
 
 
 
-# Note: These are the Christoffel symbols on the sphere
+# Metric on the sphere:
+#     γ = diag(1, sinθ^2)
+# Christoffel symbols on the sphere:
 # <https://einsteinrelativelyeasy.com/index.php/general-relativity/34-christoffel-symbol-exercise-calculation-in-polar-coordinates-part-ii>:
-
-# γ = diag(1, sinθ^2)
-# Γ^θ = [0 0; 0 -sinθ*cosθ]
-# Γ^ϕ = [0 cosθ/sinθ; cosθ/sinθ 0]
+#     Γ^θ = [0 0; 0 -sinθ*cosθ]
+#     Γ^ϕ = [0 cosθ/sinθ; cosθ/sinθ 0]
 
 # Note: Tensor components have their ϕ component divided by sinθ.
 
@@ -156,18 +156,22 @@ function gradgradYlm(l,m,θ::T,ϕ::T)::SMatrix{2,2,Complex{T}} where {T}
     (l,m) == (2,2) && (ddY = bitconj.(c, s.*ddY22(θ,ϕ)))
     ddY isa Nothing && @error "oops"
     gg = SMatrix{2,2,Complex{T}}(ddY[1], ddY[2], ddY[2], ddY[3])
-    # Note: The paper wants this, but this doesn't work
+    # Note: The Sandberg paper wants this, but this doesn't work
     # gg += l*(l+1)÷2 * traceYlm(l,m,θ,ϕ)
     # Make basis explicitly trace-free
     trgg = gg[1,1] + gg[2,2]
     gg -= trgg/2 * SMatrix{2,2,T}(1, 0, 0, 1)
-    trgg = gg[1,1] + gg[2,2]
-    @assert abs(trgg) <= sqrt(eps())
+    # trgg = gg[1,1] + gg[2,2]
+    # @assert abs(trgg) <= sqrt(eps())
     gg
 end
 
-# There are two more bases, but we ignore them (I don't think we need
-# them)
+export epsilonYlm
+function epsilonYlm(l,m,θ::T,ϕ::T)::SMatrix{2,2,Complex{T}} where {T}
+    (0, 1, -1, 0) .* Ylm(l,m,θ,ϕ)
+end
+
+export gradcurlYlm
 
 
 

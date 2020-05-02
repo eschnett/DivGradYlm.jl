@@ -1,5 +1,6 @@
 using DivGradYlm
 
+using StaticArrays
 using Test
 
 
@@ -11,7 +12,7 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
 
 
 
-@testset "Basis function" begin
+@testset "Basis functions" begin
 
     T = Float64
     atol = sqrt(eps(T))
@@ -46,7 +47,7 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
         end
     end
 
-    @testset "grad/curlYlm" begin
+    @testset "gradYlm/curlYlm" begin
         for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
             I = sphere_vdot(T,
                             (θ,ϕ) -> gradYlm(l,m,θ,ϕ),
@@ -61,7 +62,8 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
                             (θ,ϕ) -> traceYlm(l,m,θ,ϕ),
                             (θ,ϕ) -> traceYlm(l′,m′,θ,ϕ))
             δ = (l,m)==(l′,m′)
-            # Note: The paper says I = -2δ
+            # Note: The Sandberg paper says I = -2δ, but that seems
+            # wrong
             @test abs(I - 2δ) <= 10*atol
         end
     end
@@ -73,6 +75,35 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
                             (θ,ϕ) -> gradgradYlm(l′,m′,θ,ϕ))
             δ = (l,m)==(l′,m′)
             @test abs(I - l*(l+1) * (l*(l+1)÷2 - 1) * δ) <= 10*atol
+        end
+    end
+
+    @testset "trace traceYlm" begin
+        γ = SMatrix{2,2,Bool}(1, 0, 0, 1)
+        for l in 0:lmax, m in -l:l
+            for θ in range(0, T(π), length=21), ϕ in range(0, 2*T(π), length=41)
+                d = sum(traceYlm(l,m,θ,ϕ) .* γ) - 2*Ylm(l,m,θ,ϕ)
+                @test abs(d) <= 10*atol
+            end
+        end
+    end
+
+    @testset "trace gradgradYlm" begin
+        γ = SMatrix{2,2,Bool}(1, 0, 0, 1)
+        for l in 0:lmax, m in -l:l
+            for θ in range(0, T(π), length=21), ϕ in range(0, 2*T(π), length=41)
+                d = sum(gradgradYlm(l,m,θ,ϕ) .* γ)
+                @test abs(d) <= 10*atol
+            end
+        end
+    end
+
+    @testset "traceYlm/gradgradYlm" begin
+        for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
+            I = sphere_tdot(T,
+                            (θ,ϕ) -> traceYlm(l,m,θ,ϕ),
+                            (θ,ϕ) -> gradgradYlm(l′,m′,θ,ϕ))
+            @test abs(I) <= 10*atol
         end
     end
 
@@ -292,6 +323,39 @@ end
         for l in 0:lmax, m in -l:l
             @test lmodes[(l,m)] == -l*(l+1) * smodes[(l,m)]
         end
+    end
+
+end
+
+
+
+@testset "Non-trivial metric" begin
+
+    T = Float64
+    atol = sqrt(eps(T))
+
+    α = 0   # T(1)
+    β = 0   # T(1)/10
+
+    g(θ,ϕ) = SMatrix{2,2}(1 +
+                          (4*α^2*cos(θ)^2*(1 + β*sin(ϕ))^2 * sin(θ)^4) /
+                          (1 + α*β*cos(ϕ)*sin(θ)^2)^2,
+
+                          -2*α*cos(θ) * (1 + β*sin(ϕ)) * sin(θ)^2 /
+                          (1 + α*β*cos(ϕ)*sin(θ)^2)^2,
+
+                          -2*α*cos(θ) * (1 + β*sin(ϕ)) * sin(θ)^2 /
+                          (1 + α*β*cos(ϕ)*sin(θ)^2)^2,
+
+                          1 / (1 + α*β*cos(ϕ)*sin(θ)^2)^2)
+
+    tgmodes = expand_trace(T, g)
+    gggmodes = expand_gradgrad(T, g)
+
+    g1(θ,ϕ) = eval_trace(tgmodes, θ,ϕ) + eval_gradgrad(gggmodes, θ,ϕ)
+
+    for θ in range(0, T(π), length=21), ϕ in range(0, 2*T(π), length=41)
+        @test maximum(abs.(g1(θ,ϕ) - g(θ,ϕ))) <= 10*atol
     end
 
 end
