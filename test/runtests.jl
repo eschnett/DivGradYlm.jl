@@ -78,6 +78,16 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
         end
     end
 
+    @testset "epsilonYlm" begin
+        for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
+            I = sphere_tdot(T,
+                            (θ,ϕ) -> epsilonYlm(l,m,θ,ϕ),
+                            (θ,ϕ) -> epsilonYlm(l′,m′,θ,ϕ))
+            δ = (l,m)==(l′,m′)
+            @test abs(I - 2δ) <= 10*atol
+        end
+    end
+
     @testset "trace traceYlm" begin
         γ = SMatrix{2,2,Bool}(1, 0, 0, 1)
         for l in 0:lmax, m in -l:l
@@ -98,11 +108,39 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
         end
     end
 
+    @testset "trace epsilonYlm" begin
+        γ = SMatrix{2,2,Bool}(1, 0, 0, 1)
+        for l in 0:lmax, m in -l:l
+            for θ in range(0, T(π), length=21), ϕ in range(0, 2*T(π), length=41)
+                d = sum(epsilonYlm(l,m,θ,ϕ) .* γ)
+                @test abs(d) <= 10*atol
+            end
+        end
+    end
+
     @testset "traceYlm/gradgradYlm" begin
         for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
             I = sphere_tdot(T,
                             (θ,ϕ) -> traceYlm(l,m,θ,ϕ),
                             (θ,ϕ) -> gradgradYlm(l′,m′,θ,ϕ))
+            @test abs(I) <= 10*atol
+        end
+    end
+
+    @testset "traceYlm/epsilonYlm" begin
+        for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
+            I = sphere_tdot(T,
+                            (θ,ϕ) -> traceYlm(l,m,θ,ϕ),
+                            (θ,ϕ) -> epsilonYlm(l′,m′,θ,ϕ))
+            @test abs(I) <= 10*atol
+        end
+    end
+
+    @testset "gradgradYlm/epsilonYlm" begin
+        for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
+            I = sphere_tdot(T,
+                            (θ,ϕ) -> gradgradYlm(l,m,θ,ϕ),
+                            (θ,ϕ) -> epsilonYlm(l′,m′,θ,ϕ))
             @test abs(I) <= 10*atol
         end
     end
