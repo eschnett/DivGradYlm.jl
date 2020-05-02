@@ -67,14 +67,18 @@ end
 #     Γ^θ = [0 0; 0 -sinθ*cosθ]
 #     Γ^ϕ = [0 cosθ/sinθ; cosθ/sinθ 0]
 
+# The "dc" derivatives are calculated as if they had tensor weight zero.
+
 # Note: Tensor components have their ϕ component divided by sinθ.
 
 # dY: (∂θ, 1/sinθ ∂ϕ)
 # ddY: (∂θ∂θ, 1/sinθ ∂θ∂ϕ, 1/sinθ^2 ∂ϕ∂ϕ)
+# dcY: (∂θ∂θ, 1/sinθ ∂θ∂ϕ, 1/sinθ^2 ∂ϕ∂ϕ)
 
 Y00(θ,ϕ) = sqrt(1/4π)
 dY00(θ,ϕ) = (0, 0)
 ddY00(θ,ϕ) = (0, 0, 0)
+dcY00(θ,ϕ) = (0, 0, 0)
 
 Y10(θ,ϕ) = sqrt(3/4π) * cos(θ)
 Y11(θ,ϕ) = -sqrt(3/8π) * sin(θ) * cis(ϕ)
@@ -82,6 +86,8 @@ dY10(θ,ϕ) = (-sqrt(3/4π) * sin(θ), 0)
 dY11(θ,ϕ) = (-sqrt(3/8π) * cos(θ) * cis(ϕ), -sqrt(3/8π) * im * cis(ϕ))
 ddY10(θ,ϕ) = (-sqrt(3/4π) * cos(θ), 0, -sqrt(3/4π) * cos(θ))
 ddY11(θ,ϕ) = (sqrt(3/8π) * sin(θ) * cis(ϕ), 0, sqrt(3/8π) * sin(θ) * cis(ϕ))
+dcY10(θ,ϕ) = (0, 0, 0)
+dcY11(θ,ϕ) = (0, 0, 0)
 
 Y20(θ,ϕ) = sqrt(5/16π) * (-1 + 3*cos(θ)^2)
 Y21(θ,ϕ) = -sqrt(15/8π) * cos(θ) * sin(θ) * cis(ϕ)
@@ -98,6 +104,13 @@ ddY21(θ,ϕ) = (sqrt(30/π) * cos(θ) * sin(θ) * cis(ϕ),
 ddY22(θ,ϕ) = (sqrt(15/8π) * cos(2θ) * cis(2ϕ),
               sqrt(15/8π) * im * cos(θ) * cis(2ϕ),
               sqrt(15/32π) * (cos(2θ) - 3) * cis(2ϕ))
+dcY20(θ,ϕ) = (0, -sqrt(45/16π) * sin(θ)^2, 0)
+dcY21(θ,ϕ) = (sqrt(15/8π) * im * sin(θ) * cis(ϕ),
+              -sqrt(15/8π) * cos(θ) * sin(θ) * cis(ϕ),
+              -sqrt(15/8π) * im * sin(θ) * cis(ϕ))
+dcY22(θ,ϕ) = (sqrt(15/8π) * im * cos(θ) * cis(2ϕ),
+              -sqrt(15/128π) * (3 + cos(2θ)) * cis(2ϕ),
+              -sqrt(15/8π) * im * cos(θ) * cis(2ϕ))
 
 
 
@@ -172,6 +185,20 @@ function epsilonYlm(l,m,θ::T,ϕ::T)::SMatrix{2,2,Complex{T}} where {T}
 end
 
 export gradcurlYlm
+function gradcurlYlm(l,m,θ::T,ϕ::T)::SMatrix{2,2,Complex{T}} where {T}
+    c = m<0
+    s = m<0 ? bitsign(m) : 1
+    m = abs(m)
+    dcY = nothing
+    (l,m) == (0,0) && (dcY = bitconj.(c, s.*dcY00(θ,ϕ)))
+    (l,m) == (1,0) && (dcY = bitconj.(c, s.*dcY10(θ,ϕ)))
+    (l,m) == (1,1) && (dcY = bitconj.(c, s.*dcY11(θ,ϕ)))
+    (l,m) == (2,0) && (dcY = bitconj.(c, s.*dcY20(θ,ϕ)))
+    (l,m) == (2,1) && (dcY = bitconj.(c, s.*dcY21(θ,ϕ)))
+    (l,m) == (2,2) && (dcY = bitconj.(c, s.*dcY22(θ,ϕ)))
+    dcY isa Nothing && @error "oops"
+    dcY[1], dcY[2], dcY[2], dcY[3]
+end
 
 
 
@@ -202,6 +229,16 @@ struct GradGradModes{T} <: AbstractModes{T}
     m::Dict{NTuple{2,Int}, Complex{T}}
     GradGradModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
 end
+export EpsilonModes
+struct EpsilonModes{T} <: AbstractModes{T}
+    m::Dict{NTuple{2,Int}, Complex{T}}
+    EpsilonModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
+end
+export GradCurlModes
+struct GradCurlModes{T} <: AbstractModes{T}
+    m::Dict{NTuple{2,Int}, Complex{T}}
+    GradCurlModes{T}() where {T} = new{T}(Dict{NTuple{2,Int}, Complex{T}}())
+end
 
 Base.getindex(m::AbstractModes, x...) = getindex(m.m, x...)
 Base.setindex!(m::AbstractModes, x...) = setindex!(m.m, x...)
@@ -212,6 +249,8 @@ lmin(::Type{<:GradModes}) = 1
 lmin(::Type{<:CurlModes}) = 1
 lmin(::Type{<:TraceModes}) = 0
 lmin(::Type{<:GradGradModes}) = 2
+lmin(::Type{<:EpsilonModes}) = 0
+lmin(::Type{<:GradCurlModes}) = 2
 
 function Base.zero(::Type{M}) where {M<:AbstractModes{T}} where {T}
     modes = M()
@@ -329,6 +368,49 @@ function eval_gradgrad(modes::GradGradModes{T}, θ,ϕ
     r = SMatrix{2,2,Complex{T}}(0, 0, 0, 0)
     for l in 2:lmax, m in -l:l
         r += modes[(l,m)] .* gradgradYlm(l,m,θ,ϕ)
+    end
+    r
+end
+
+export expand_epsilon
+function expand_epsilon(::Type{T}, f::F)::EpsilonModes{T} where {T, F}
+    atol = sqrt(eps(T))
+    modes = EpsilonModes{T}()
+    for l in 0:lmax, m in -l:l
+        modes[(l,m)] =
+            sphere_tdot(T, (θ,ϕ) -> epsilonYlm(l,m,θ,ϕ), f) / 2
+    end
+    modes
+end
+
+export eval_epsilon
+function eval_epsilon(modes::EpsilonModes{T}, θ,ϕ
+                    )::SMatrix{2,2,Complex{T}} where {T}
+    r = SMatrix{2,2,Complex{T}}(0, 0, 0, 0)
+    for l in 0:lmax, m in -l:l
+        r += modes[(l,m)] .* epsilonYlm(l,m,θ,ϕ)
+    end
+    r
+end
+
+export expand_gradcurl
+function expand_gradcurl(::Type{T}, f::F)::GradCurlModes{T} where {T, F}
+    atol = sqrt(eps(T))
+    modes = GradCurlModes{T}()
+    for l in 2:lmax, m in -l:l
+        modes[(l,m)] =
+            sphere_tdot(T, (θ,ϕ) -> gradcurlYlm(l,m,θ,ϕ), f) /
+            (l*(l+1) * (l*(l+1)÷2 - 1))
+    end
+    modes
+end
+
+export eval_gradcurl
+function eval_gradcurl(modes::GradCurlModes{T}, θ,ϕ
+                    )::SMatrix{2,2,Complex{T}} where {T}
+    r = SMatrix{2,2,Complex{T}}(0, 0, 0, 0)
+    for l in 2:lmax, m in -l:l
+        r += modes[(l,m)] .* gradcurlYlm(l,m,θ,ϕ)
     end
     r
 end
