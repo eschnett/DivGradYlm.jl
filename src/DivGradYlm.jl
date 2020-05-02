@@ -14,6 +14,10 @@ export bitsign
 bitsign(b::Bool) = b ? -1 : 1
 bitsign(i::Integer) = bitsign(isodd(i))
 
+export bitconj
+bitconj(b, x) = x
+bitconj(b, x::Complex) = Complex(real(x), bitsign(b) * imag(x))
+
 
 
 export sphere_dot
@@ -33,6 +37,20 @@ function sphere_vdot(::Type{T}, f::F, g::G) where {T, F, G}
     atol = sqrt(eps(T))
     function k(x)
         θ,ϕ = x
+        # We scale the ϕ components, so the metric is trivial
+        sum(conj(f(θ,ϕ)) .* g(θ,ϕ)) * sin(θ)
+    end
+    I,E = hcubature(k, (0,0), (T(π),2*T(π)), atol=atol)
+    @assert E <= atol
+    I
+end
+
+export sphere_tdot
+function sphere_tdot(::Type{T}, f::F, g::G) where {T, F, G}
+    atol = sqrt(eps(T))
+    function k(x)
+        θ,ϕ = x
+        # We scale the ϕ components, so the metric is trivial
         sum(conj(f(θ,ϕ)) .* g(θ,ϕ)) * sin(θ)
     end
     I,E = hcubature(k, (0,0), (T(π),2*T(π)), atol=atol)
@@ -42,14 +60,28 @@ end
 
 
 
+# Note: These are the Christoffel symbols on the sphere
+# <https://einsteinrelativelyeasy.com/index.php/general-relativity/34-christoffel-symbol-exercise-calculation-in-polar-coordinates-part-ii>:
+
+# γ = diag(1, sinθ^2)
+# Γ^θ = [0 0; 0 -sinθ*cosθ]
+# Γ^ϕ = [0 cosθ/sinθ; cosθ/sinθ 0]
+
+# Note: Tensor components have their ϕ component divided by sinθ.
+
+# dY: (∂θ, 1/sinθ ∂ϕ)
+# ddY: (∂θ∂θ, 1/sinθ ∂θ∂ϕ, 1/sinθ^2 ∂ϕ∂ϕ)
+
 Y00(θ,ϕ) = sqrt(1/4π)
 dY00(θ,ϕ) = (0, 0)
+ddY00(θ,ϕ) = (0, 0, 0)
 
 Y10(θ,ϕ) = sqrt(3/4π) * cos(θ)
 Y11(θ,ϕ) = -sqrt(3/8π) * sin(θ) * cis(ϕ)
 dY10(θ,ϕ) = (-sqrt(3/4π) * sin(θ), 0)
-dY11(θ,ϕ) = (-sqrt(3/8π) * cos(θ) * cis(ϕ),
-             -sqrt(3/8π) * im * cis(ϕ))
+dY11(θ,ϕ) = (-sqrt(3/8π) * cos(θ) * cis(ϕ), -sqrt(3/8π) * im * cis(ϕ))
+ddY10(θ,ϕ) = (-sqrt(3/4π) * cos(θ), 0, -sqrt(3/4π) * cos(θ))
+ddY11(θ,ϕ) = (sqrt(3/8π) * sin(θ) * cis(ϕ), 0, sqrt(3/8π) * sin(θ) * cis(ϕ))
 
 Y20(θ,ϕ) = sqrt(5/16π) * (-1 + 3*cos(θ)^2)
 Y21(θ,ϕ) = -sqrt(15/8π) * cos(θ) * sin(θ) * cis(ϕ)
@@ -59,35 +91,42 @@ dY21(θ,ϕ) = (-sqrt(15/8π) * cos(2θ) * cis(ϕ),
              -sqrt(15/8π) * im * cos(θ) * cis(ϕ))
 dY22(θ,ϕ) = (sqrt(15/8π) * cos(θ) * sin(θ) * cis(2ϕ),
              sqrt(15/8π) * im * sin(θ) * cis(2ϕ))
+ddY20(θ,ϕ) = (-sqrt(45/4π) * cos(2θ), 0, -sqrt(45/4π) * cos(θ)^2)
+ddY21(θ,ϕ) = (sqrt(30/π) * cos(θ) * sin(θ) * cis(ϕ),
+              sqrt(15/8π) * im * sin(θ) * cis(ϕ),
+              sqrt(15/2π) * cos(θ) * sin(θ) * cis(ϕ))
+ddY22(θ,ϕ) = (sqrt(15/8π) * cos(2θ) * cis(2ϕ),
+              sqrt(15/8π) * im * cos(θ) * cis(2ϕ),
+              sqrt(15/32π) * (cos(2θ) - 3) * cis(2ϕ))
 
 
 
 export Ylm
 function Ylm(l,m,θ::T,ϕ::T)::Complex{T} where {T}
-    ϕ′ = bitsign(m<0) * ϕ
+    c = m<0
     s = m<0 ? bitsign(m) : 1
     m = abs(m)
-    (l,m) == (0,0) && return s*Y00(θ,ϕ′)
-    (l,m) == (1,0) && return s*Y10(θ,ϕ′)
-    (l,m) == (1,1) && return s*Y11(θ,ϕ′)
-    (l,m) == (2,0) && return s*Y20(θ,ϕ′)
-    (l,m) == (2,1) && return s*Y21(θ,ϕ′)
-    (l,m) == (2,2) && return s*Y22(θ,ϕ′)
+    (l,m) == (0,0) && return s * bitconj(c, Y00(θ,ϕ))
+    (l,m) == (1,0) && return s * bitconj(c, Y10(θ,ϕ))
+    (l,m) == (1,1) && return s * bitconj(c, Y11(θ,ϕ))
+    (l,m) == (2,0) && return s * bitconj(c, Y20(θ,ϕ))
+    (l,m) == (2,1) && return s * bitconj(c, Y21(θ,ϕ))
+    (l,m) == (2,2) && return s * bitconj(c, Y22(θ,ϕ))
     @error "oops"
 end
 
 export gradYlm
 # (∂θ, 1/sinθ ∂ϕ)
 function gradYlm(l,m,θ::T,ϕ::T)::SVector{2,Complex{T}} where {T}
-    ϕ′ = bitsign(m<0) * ϕ
+    c = m<0
     s = m<0 ? bitsign(m) : 1
     m = abs(m)
-    (l,m) == (0,0) && return s.*dY00(θ,ϕ′)
-    (l,m) == (1,0) && return s.*dY10(θ,ϕ′)
-    (l,m) == (1,1) && return s.*dY11(θ,ϕ′)
-    (l,m) == (2,0) && return s.*dY20(θ,ϕ′)
-    (l,m) == (2,1) && return s.*dY21(θ,ϕ′)
-    (l,m) == (2,2) && return s.*dY22(θ,ϕ′)
+    (l,m) == (0,0) && return bitconj.(c, s.*dY00(θ,ϕ))
+    (l,m) == (1,0) && return bitconj.(c, s.*dY10(θ,ϕ))
+    (l,m) == (1,1) && return bitconj.(c, s.*dY11(θ,ϕ))
+    (l,m) == (2,0) && return bitconj.(c, s.*dY20(θ,ϕ))
+    (l,m) == (2,1) && return bitconj.(c, s.*dY21(θ,ϕ))
+    (l,m) == (2,2) && return bitconj.(c, s.*dY22(θ,ϕ))
     @error "oops"
 end
 
@@ -97,6 +136,38 @@ function curlYlm(l,m,θ::T,ϕ::T)::SVector{2,Complex{T}} where {T}
     dr = gradYlm(l,m,θ,ϕ)
     dr[2], -dr[1]
 end
+
+export traceYlm
+function traceYlm(l,m,θ::T,ϕ::T)::SMatrix{2,2,Complex{T}} where {T}
+    (1, 0, 0, 1) .* Ylm(l,m,θ,ϕ)
+end
+
+export gradgradYlm
+function gradgradYlm(l,m,θ::T,ϕ::T)::SMatrix{2,2,Complex{T}} where {T}
+    c = m<0
+    s = m<0 ? bitsign(m) : 1
+    m = abs(m)
+    ddY = nothing
+    (l,m) == (0,0) && (ddY = bitconj.(c, s.*ddY00(θ,ϕ)))
+    (l,m) == (1,0) && (ddY = bitconj.(c, s.*ddY10(θ,ϕ)))
+    (l,m) == (1,1) && (ddY = bitconj.(c, s.*ddY11(θ,ϕ)))
+    (l,m) == (2,0) && (ddY = bitconj.(c, s.*ddY20(θ,ϕ)))
+    (l,m) == (2,1) && (ddY = bitconj.(c, s.*ddY21(θ,ϕ)))
+    (l,m) == (2,2) && (ddY = bitconj.(c, s.*ddY22(θ,ϕ)))
+    ddY isa Nothing && @error "oops"
+    gg = SMatrix{2,2,Complex{T}}(ddY[1], ddY[2], ddY[2], ddY[3])
+    # Note: The paper wants this, but this doesn't work
+    # gg += l*(l+1)÷2 * traceYlm(l,m,θ,ϕ)
+    # Make basis explicitly trace-free
+    trgg = gg[1,1] + gg[2,2]
+    gg -= trgg/2 * SMatrix{2,2,T}(1, 0, 0, 1)
+    trgg = gg[1,1] + gg[2,2]
+    @assert abs(trgg) <= sqrt(eps())
+    gg
+end
+
+# There are two more bases, but we ignore them (I don't think we need
+# them)
 
 
 

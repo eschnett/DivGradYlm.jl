@@ -18,7 +18,7 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
 
     @testset "Ylm" begin
         for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
-            I = sphere_dot(Float64,
+            I = sphere_dot(T,
                            (θ,ϕ) -> Ylm(l,m,θ,ϕ),
                            (θ,ϕ) -> Ylm(l′,m′,θ,ϕ))
             δ = (l,m)==(l′,m′)
@@ -28,7 +28,7 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
 
     @testset "gradYlm" begin
         for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
-            I = sphere_vdot(Float64,
+            I = sphere_vdot(T,
                             (θ,ϕ) -> gradYlm(l,m,θ,ϕ),
                             (θ,ϕ) -> gradYlm(l′,m′,θ,ϕ))
             δ = (l,m)==(l′,m′)
@@ -38,7 +38,7 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
 
     @testset "curlYlm" begin
         for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
-            I = sphere_vdot(Float64,
+            I = sphere_vdot(T,
                             (θ,ϕ) -> curlYlm(l,m,θ,ϕ),
                             (θ,ϕ) -> curlYlm(l′,m′,θ,ϕ))
             δ = (l,m)==(l′,m′)
@@ -48,10 +48,31 @@ Base.rand(::Type{Complex{BigRat}}) = Complex{BigRat}(rand(BigRat), rand(BigRat))
 
     @testset "grad/curlYlm" begin
         for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
-            I = sphere_vdot(Float64,
+            I = sphere_vdot(T,
                             (θ,ϕ) -> gradYlm(l,m,θ,ϕ),
                             (θ,ϕ) -> curlYlm(l′,m′,θ,ϕ))
             @test abs(I) <= 10*atol
+        end
+    end
+
+    @testset "traceYlm" begin
+        for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
+            I = sphere_tdot(T,
+                            (θ,ϕ) -> traceYlm(l,m,θ,ϕ),
+                            (θ,ϕ) -> traceYlm(l′,m′,θ,ϕ))
+            δ = (l,m)==(l′,m′)
+            # Note: The paper says I = -2δ
+            @test abs(I - 2δ) <= 10*atol
+        end
+    end
+
+    @testset "gradgradYlm" begin
+        for l in 0:lmax, m in -l:l, l′=0:lmax, m′=-l′:l′
+            I = sphere_tdot(T,
+                            (θ,ϕ) -> gradgradYlm(l,m,θ,ϕ),
+                            (θ,ϕ) -> gradgradYlm(l′,m′,θ,ϕ))
+            δ = (l,m)==(l′,m′)
+            @test abs(I - l*(l+1) * (l*(l+1)÷2 - 1) * δ) <= 10*atol
         end
     end
 
